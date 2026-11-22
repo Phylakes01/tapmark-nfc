@@ -158,6 +158,8 @@ object BerTlvParser {
         "9F4E" to "Merchant Name and Location",
         "9F4F" to "Log Format",
         "9F5D" to "Available Offline Spending Amount",
+        "9F60" to "CVC3 (Track 1)",
+        "9F61" to "CVC3 (Track 2)",
         "9F66" to "Terminal Transaction Qualifiers (TTQ)",
         "9F6C" to "Card Transaction Qualifiers (CTQ)",
         "9F6E" to "Form Factor Indicator / Third Party Data",
@@ -424,6 +426,13 @@ object BerTlvParser {
             "50", "9F12", "5F20", "5F2D", "5F50", "5F55", "9F4E" -> {
                 val ascii = decodePrintableAscii(bytes)
                 if (ascii.isNotBlank()) ascii else hex
+            }
+            "9F1F" -> {
+                if (bytes.isNotEmpty() && bytes.all { (it.toInt() and 0xFF) in 0x20..0x7E }) {
+                    decodePrintableAscii(bytes).ifBlank { hex }
+                } else {
+                    hex
+                }
             }
             "84" -> {
                 val ascii = decodePrintableAscii(bytes)

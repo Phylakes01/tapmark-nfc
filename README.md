@@ -4,6 +4,45 @@
 
 ---
 
+## App Preview
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/02-scanner-idle.png" width="200" alt="Copper Coil Scanner" /><br /><sub><b>Copper Coil Scanner</b></sub></td>
+    <td align="center"><img src="docs/screenshots/03-bpi-card.png" width="200" alt="BPI Card Design" /><br /><sub><b>BPI Card Artwork &amp; EMV</b></sub></td>
+    <td align="center"><img src="docs/screenshots/04-bdo-card.png" width="200" alt="BDO Card Design" /><br /><sub><b>BDO Mastercard Artwork</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/05-gcash-card-back.png" width="200" alt="3D Card Back Flip" /><br /><sub><b>3D Card Back &amp; Chip Security</b></sub></td>
+    <td align="center"><img src="docs/screenshots/06-transaction-history.png" width="200" alt="EMV Details and Security Ledger" /><br /><sub><b>EMV Ledger &amp; Chip Security</b></sub></td>
+    <td align="center"><sub><b>Tapmark v1.3</b><br />Animated Launch Intro<br />3D Touch-Tilt &amp; Flip<br />EMV Logs &amp; Bank Artwork<br /><br /><i>Made by Jeremiah Temporado</i></sub></td>
+  </tr>
+</table>
+
+---
+
+## Supported Bank Card Artwork
+
+Custom geometric vector card artwork, brand palettes, crests, and vector network logos (`Visa`, `Mastercard`, `Amex`, `JCB`, `UnionPay`, `Discover`) are rendered for detected issuers:
+
+- **Philippine Banks &amp; E-Wallets (19):** BPI, BDO Unibank, Metrobank, UnionBank, LandBank, GCash, Maya, GoTyme Bank, SeaBank / MariBank, RCBC, Security Bank, China Bank, PNB, EastWest Bank, CIMB Bank PH, Tonik, PSBank, Robinsons Bank, Asia United Bank (AUB).
+- **Global Banks (15):** Chase, Bank of America, Wells Fargo, Citibank, Capital One, HSBC, Barclays, Revolut, Wise, Monzo, DBS, OCBC, UOB, American Express, Discover.
+
+---
+
+## EMV CVV2 / CVC2 Security Note
+
+By global **EMVCo contactless security standards**, the static 3- or 4-digit **CVV2 / CVC2** printed on the back of a physical payment card is **never stored on the EMV chip** and cannot be read over NFC by any app.
+
+Instead, Tapmark v1.3 transparently reports that EMVCo protection on the flippable **3D Card Back** and in the **Payment / EMV Info** ledger while extracting the real chip-level cryptographic security fields when exposed by the card:
+- **Dynamic CVC3** (`9F61` Track 2 / `9F60` Track 1)
+- **Track 2 Discretionary Data (`iCVV` / `dCVV`)** from tag `57` (and Track 1 `9F1F`)
+- **Application Cryptogram (`9F26`)** and **Service Code (`5F30`)**
+
+Sensitive values (`panFull` and `chipCvcData`) are masked by default in the UI and stripped before writing local history.
+
+---
+
 ## Features
 
 - **Contactless EMV Payment Inspection**

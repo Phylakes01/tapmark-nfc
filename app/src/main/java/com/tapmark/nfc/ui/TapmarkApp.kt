@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -118,7 +119,9 @@ fun TapmarkApp(
     onDeleteCard: (String) -> Unit,
     onClearHistory: () -> Unit,
     showOpeningIntro: Boolean = false,
-    onIntroFinished: () -> Unit = {}
+    onIntroFinished: () -> Unit = {},
+    onSelectSample: (Int) -> Unit = {},
+    startCardFlipped: Boolean = false
 ) {
     var feedbackBanner by remember { mutableStateOf<String?>(null) }
 
@@ -179,7 +182,9 @@ fun TapmarkApp(
                             onNextSample = onNextSample,
                             onNewScan = onNewScan,
                             onUpdateLabel = onUpdateLabel,
-                            onFeedbackMessage = { feedbackBanner = it }
+                            onFeedbackMessage = { feedbackBanner = it },
+                            onSelectSample = onSelectSample,
+                            startCardFlipped = startCardFlipped
                         )
                     }
 
@@ -205,8 +210,18 @@ fun TapmarkApp(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            PaperCanvas.copy(alpha = 0f),
+                            PaperCanvas.copy(alpha = 0.90f),
+                            PaperCanvas
+                        )
+                    )
+                )
                 .navigationBarsPadding()
-                .padding(bottom = 4.dp),
+                .padding(top = 14.dp, bottom = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AnimatedVisibility(

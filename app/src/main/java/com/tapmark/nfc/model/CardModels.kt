@@ -61,6 +61,10 @@ data class EmvCardInfo(
     val lastOnlineAtc: Int? = null,
     val pinTryCounter: Int?,
     val luhnValid: Boolean?,
+    val cvcNote: String? = null,
+    val chipCvcLabel: String? = null,
+    val chipCvcData: String? = null,
+    val cryptogramHex: String? = null,
     val logStatusMessage: String? = null,
     val transactionLogs: List<EmvTxLog>
 )

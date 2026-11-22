@@ -293,6 +293,42 @@ private fun EmvLedgerSection(
         emv.pinTryCounter?.let {
             add(LedgerRowSpec("PIN Tries Left", it.toString(), isMono = true, valueColor = PrimaryInk))
         }
+        add(
+            LedgerRowSpec(
+                label = "Printed CVV2 / CVC2",
+                value = "Not stored on chip (EMVCo)",
+                isMono = false,
+                valueColor = StatusAmber
+            )
+        )
+        emv.chipCvcData?.takeIf { it.isNotBlank() }?.let { chipCvc ->
+            val maskedChipCvc = if (revealPan) {
+                chipCvc
+            } else if (chipCvc.length <= 4) {
+                "••••"
+            } else {
+                "•••• ••••"
+            }
+            add(
+                LedgerRowSpec(
+                    label = emv.chipCvcLabel?.takeIf { it.isNotBlank() } ?: "Chip CVC / iCVV",
+                    value = maskedChipCvc,
+                    isMono = true,
+                    valueColor = PrimaryInk,
+                    animateValue = true
+                )
+            )
+        }
+        emv.cryptogramHex?.takeIf { it.isNotBlank() }?.let { cryptoHex ->
+            add(
+                LedgerRowSpec(
+                    label = "Cryptogram (9F26)",
+                    value = cryptoHex,
+                    isMono = true,
+                    valueColor = PrimaryInk
+                )
+            )
+        }
         emv.luhnValid?.let { valid ->
             add(
                 LedgerRowSpec(

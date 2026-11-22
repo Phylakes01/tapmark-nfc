@@ -17,7 +17,7 @@ import java.io.File
 
 /**
  * Persists scanned NFC cards as JSON in app-private storage (`filesDir/tapmark_history.json`),
- * stripping full PANs before disk persistence and capping history at 50 newest-first entries.
+ * stripping full PANs and chip CVC/iCVV data before disk persistence and capping history at 50 newest-first entries.
  */
 class CardHistoryRepository(context: Context) {
 
@@ -35,7 +35,10 @@ class CardHistoryRepository(context: Context) {
     fun saveScan(card: ScannedCard): List<ScannedCard> = synchronized(lock) {
         val sanitized = card.copy(
             isSample = false,
-            emvInfo = card.emvInfo?.copy(panFull = null)
+            emvInfo = card.emvInfo?.copy(
+                panFull = null,
+                chipCvcData = null
+            )
         )
         val current = loadInternal().filterNot { it.id == sanitized.id }
         val updated = (listOf(sanitized) + current).take(MAX_HISTORY_ENTRIES)
@@ -90,7 +93,12 @@ class CardHistoryRepository(context: Context) {
         }
         val array = JSONArray()
         for (card in cards.take(MAX_HISTORY_ENTRIES)) {
-            val sanitized = card.copy(emvInfo = card.emvInfo?.copy(panFull = null))
+            val sanitized = card.copy(
+                emvInfo = card.emvInfo?.copy(
+                    panFull = null,
+                    chipCvcData = null
+                )
+            )
             array.put(cardToJson(sanitized))
         }
         val payload = array.toString()
@@ -215,6 +223,10 @@ class CardHistoryRepository(context: Context) {
         put("lastOnlineAtc", emv.lastOnlineAtc ?: JSONObject.NULL)
         put("pinTryCounter", emv.pinTryCounter ?: JSONObject.NULL)
         put("luhnValid", emv.luhnValid ?: JSONObject.NULL)
+        put("cvcNote", emv.cvcNote ?: JSONObject.NULL)
+        put("chipCvcLabel", emv.chipCvcLabel ?: JSONObject.NULL)
+        put("chipCvcData", JSONObject.NULL) // Never persist chip CVC/iCVV data to disk
+        put("cryptogramHex", emv.cryptogramHex ?: JSONObject.NULL)
         put("logStatusMessage", emv.logStatusMessage ?: JSONObject.NULL)
         put("transactionLogs", JSONArray().apply {
             emv.transactionLogs.forEach { log ->
@@ -279,6 +291,10 @@ class CardHistoryRepository(context: Context) {
             lastOnlineAtc = obj.optIntOrNull("lastOnlineAtc"),
             pinTryCounter = obj.optIntOrNull("pinTryCounter"),
             luhnValid = obj.optBooleanOrNull("luhnValid"),
+            cvcNote = obj.optStringOrNull("cvcNote"),
+            chipCvcLabel = obj.optStringOrNull("chipCvcLabel"),
+            chipCvcData = null,
+            cryptogramHex = obj.optStringOrNull("cryptogramHex"),
             logStatusMessage = obj.optStringOrNull("logStatusMessage"),
             transactionLogs = logs
         )

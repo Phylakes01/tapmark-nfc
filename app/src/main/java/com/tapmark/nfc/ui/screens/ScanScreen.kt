@@ -94,7 +94,9 @@ fun ScanScreen(
     onNewScan: () -> Unit,
     onUpdateLabel: (String, String?) -> Unit,
     onFeedbackMessage: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSelectSample: (Int) -> Unit = {},
+    startCardFlipped: Boolean = false
 ) {
     AnimatedContent(
         targetState = scannedCard,
@@ -140,9 +142,11 @@ fun ScanScreen(
                 sampleIndex = sampleIndex,
                 sampleCount = sampleCount,
                 onNextSample = onNextSample,
+                onSelectSample = onSelectSample,
                 onNewScan = onNewScan,
                 onUpdateLabel = { label -> onUpdateLabel(card.id, label) },
-                onFeedbackMessage = onFeedbackMessage
+                onFeedbackMessage = onFeedbackMessage,
+                startCardFlipped = startCardFlipped
             )
         }
     }
@@ -258,9 +262,11 @@ private fun ScannedCardDetailStage(
     sampleIndex: Int,
     sampleCount: Int,
     onNextSample: () -> Unit,
+    onSelectSample: (Int) -> Unit,
     onNewScan: () -> Unit,
     onUpdateLabel: (String?) -> Unit,
-    onFeedbackMessage: (String) -> Unit
+    onFeedbackMessage: (String) -> Unit,
+    startCardFlipped: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -279,7 +285,11 @@ private fun ScannedCardDetailStage(
             } else {
                 null
             },
-            onNextSample = if (card.isSample && sampleCount > 1) onNextSample else null
+            onNextSample = if (card.isSample && sampleCount > 1) onNextSample else null,
+            sampleIndex = sampleIndex,
+            sampleCount = sampleCount,
+            onSelectSample = if (card.isSample && sampleCount > 1) onSelectSample else null,
+            initialFlipped = startCardFlipped
         )
     }
 }

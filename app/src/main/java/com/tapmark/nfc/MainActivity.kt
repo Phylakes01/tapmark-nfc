@@ -42,6 +42,7 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_DEMO_INDEX = "com.tapmark.nfc.EXTRA_DEMO_INDEX"
+        const val EXTRA_START_FLIPPED = "com.tapmark.nfc.EXTRA_START_FLIPPED"
         private const val READER_PRESENCE_DELAY_MS = 250
     }
 
@@ -57,6 +58,7 @@ class MainActivity : ComponentActivity() {
     private var tagLostMessage by mutableStateOf<String?>(null)
     private var errorMessage by mutableStateOf<String?>(null)
     private var sampleIndex by mutableIntStateOf(0)
+    private var startFlipped by mutableStateOf(false)
     private var history by mutableStateOf<List<ScannedCard>>(emptyList())
     private var skipIntroSignal by mutableIntStateOf(0)
 
@@ -114,7 +116,9 @@ class MainActivity : ComponentActivity() {
                     onPreviewSample = {
                         if (samples.isNotEmpty()) {
                             val idx = sampleIndex.coerceIn(samples.indices)
+                            sampleIndex = idx
                             scannedCard = samples[idx]
+                            startFlipped = false
                             tagLostMessage = null
                             errorMessage = null
                         }
@@ -123,12 +127,24 @@ class MainActivity : ComponentActivity() {
                         if (samples.isNotEmpty()) {
                             sampleIndex = (sampleIndex + 1) % samples.size
                             scannedCard = samples[sampleIndex]
+                            startFlipped = false
+                            tagLostMessage = null
+                            errorMessage = null
+                        }
+                    },
+                    onSelectSample = { idx ->
+                        if (samples.isNotEmpty()) {
+                            val bounded = idx.coerceIn(samples.indices)
+                            sampleIndex = bounded
+                            scannedCard = samples[bounded]
+                            startFlipped = false
                             tagLostMessage = null
                             errorMessage = null
                         }
                     },
                     onNewScan = {
                         scannedCard = null
+                        startFlipped = false
                         tagLostMessage = null
                         errorMessage = null
                     },
@@ -142,7 +158,8 @@ class MainActivity : ComponentActivity() {
                         clearAllHistory()
                     },
                     showOpeningIntro = showOpeningIntro,
-                    onIntroFinished = { showOpeningIntro = false }
+                    onIntroFinished = { showOpeningIntro = false },
+                    startCardFlipped = startFlipped
                 )
             }
         }
@@ -206,18 +223,31 @@ class MainActivity : ComponentActivity() {
         if (launchIntent == null) return false
         val demoIndex = launchIntent.getIntExtra(EXTRA_DEMO_INDEX, -1)
         if (demoIndex in SampleCards.all.indices) return true
+        if (launchIntent.getBooleanExtra(EXTRA_START_FLIPPED, false)) return true
         return IntentCompat.getParcelableExtra(launchIntent, NfcAdapter.EXTRA_TAG, Tag::class.java) != null
     }
 
     private fun handleLaunchIntent(intent: Intent?) {
         if (intent == null) return
 
+        val requestedFlipped = intent.getBooleanExtra(EXTRA_START_FLIPPED, false)
         val demoIndex = intent.getIntExtra(EXTRA_DEMO_INDEX, -1)
         val samples = SampleCards.all
         if (demoIndex in samples.indices) {
             skipIntroSignal += 1
             sampleIndex = demoIndex
             scannedCard = samples[demoIndex]
+            startFlipped = requestedFlipped
+            tagLostMessage = null
+            errorMessage = null
+            selectedTab = TapmarkTab.SCAN
+            return
+        } else if (requestedFlipped && samples.isNotEmpty()) {
+            skipIntroSignal += 1
+            val bounded = sampleIndex.coerceIn(samples.indices)
+            sampleIndex = bounded
+            scannedCard = samples[bounded]
+            startFlipped = true
             tagLostMessage = null
             errorMessage = null
             selectedTab = TapmarkTab.SCAN
@@ -239,6 +269,7 @@ class MainActivity : ComponentActivity() {
                 skipIntroSignal += 1
                 selectedTab = TapmarkTab.SCAN
                 scannedCard = null
+                startFlipped = false
                 isReading = true
                 tagLostMessage = null
                 errorMessage = null

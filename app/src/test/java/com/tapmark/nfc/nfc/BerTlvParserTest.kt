@@ -89,12 +89,16 @@ class BerTlvParserTest {
     fun `contains required EMV tags, ISO 3166 countries, and ISO 4217 currencies`() {
         val requiredTags = listOf(
             "42", "4F", "50", "57", "5A", "5F20", "5F24", "5F25", "5F28", "5F30", "5F50",
-            "82", "84", "87", "94", "9F12", "9F17", "9F21", "9F36", "9F38", "9F42", "9F4D", "9F4E", "9F4F",
-            "DF4D", "DF4F"
+            "82", "84", "87", "94", "9F12", "9F17", "9F1F", "9F21", "9F26", "9F36", "9F38",
+            "9F42", "9F4D", "9F4E", "9F4F", "9F60", "9F61", "DF4D", "DF4F"
         )
         for (tag in requiredTags) {
             assertTrue("Missing EMV tag $tag", BerTlvParser.EMV_TAG_NAMES.containsKey(tag))
         }
+        assertEquals("CVC3 (Track 1)", BerTlvParser.tagName("9F60"))
+        assertEquals("CVC3 (Track 2)", BerTlvParser.tagName("9F61"))
+        assertEquals("Application Cryptogram", BerTlvParser.tagName("9F26"))
+        assertEquals("Track 1 Discretionary Data", BerTlvParser.tagName("9F1F"))
 
         assertEquals("United States", BerTlvParser.countryName(840))
         assertEquals("United Kingdom", BerTlvParser.countryName(826))

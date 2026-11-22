@@ -25,7 +25,8 @@ data class EmvReadResult(
 data class Track2Data(
     val pan: String,
     val expiryFormatted: String?,
-    val serviceCode: String?
+    val serviceCode: String?,
+    val discretionaryData: String? = null
 )
 
 /**
@@ -35,6 +36,8 @@ data class Track2Data(
 object EmvReader {
 
     private val PPSE_AID = "2PAY.SYS.DDF01".toByteArray(Charsets.US_ASCII)
+    private const val CVC_EMVCO_NOTE =
+        "Printed CVV2/CVC2 is never stored on EMV chips (EMVCo security)"
     private val DEFAULT_TTQ = byteArrayOf(0x36, 0x00, 0x00, 0x00)
     private val RETRY_AMOUNT_BYTES = byteArrayOf(0x00, 0x00, 0x00, 0x00, 0x01, 0x00)
     private val RETRY_TTQ_1 = byteArrayOf(0x36, 0x20, 0x40, 0x00)
@@ -361,6 +364,21 @@ object EmvReader {
                 }
             }
 
+            // EMVCo security fields: static printed CVV2/CVC2 is never stored on EMV chips;
+            // expose dynamic CVC3 or Track 1/2 discretionary data + Application Cryptogram (9F26) when present.
+            val cvc9F61 = collectedTags["9F61"]?.toHexString()?.takeIf { it.isNotBlank() }
+            val cvc9F60 = collectedTags["9F60"]?.toHexString()?.takeIf { it.isNotBlank() }
+            val track2Disc = track2?.discretionaryData?.takeIf { it.isNotBlank() }
+            val track1Disc = collectedTags["9F1F"]?.let { decodeTrack1Discretionary(it) }
+            val (chipCvcLabel, chipCvcData) = when {
+                cvc9F61 != null -> "Dynamic CVC3 (9F61)" to cvc9F61
+                cvc9F60 != null -> "Dynamic CVC3 (9F60)" to cvc9F60
+                track2Disc != null -> "Track 2 Discretionary (iCVV)" to track2Disc
+                track1Disc != null -> "Track 1 Discretionary (9F1F)" to track1Disc
+                else -> null to null
+            }
+            val cryptogramHex = collectedTags["9F26"]?.toHexString()?.takeIf { it.isNotBlank() }
+
             val info = EmvCardInfo(
                 network = network,
                 bankName = bankInfo?.bankName,
@@ -381,6 +399,10 @@ object EmvReader {
                 lastOnlineAtc = lastOnlineAtc,
                 pinTryCounter = pinTryCounter,
                 luhnValid = luhnValid,
+                cvcNote = CVC_EMVCO_NOTE,
+                chipCvcLabel = chipCvcLabel,
+                chipCvcData = chipCvcData,
+                cryptogramHex = cryptogramHex,
                 logStatusMessage = logStatusMessage,
                 transactionLogs = txLogs
             )
@@ -473,11 +495,31 @@ object EmvReader {
             afterD.substring(4, 7)
         } else null
 
+        val discretionaryData = if (afterD.length > 7) {
+            afterD.substring(7)
+                .trimEnd('F', 'f')
+                .filter { it.isDigit() || it in 'A'..'F' || it in 'a'..'f' }
+                .trimEnd('F', 'f')
+                .takeIf { it.isNotBlank() }
+        } else null
+
         return Track2Data(
             pan = pan,
             expiryFormatted = expiryFormatted,
-            serviceCode = serviceCode
+            serviceCode = serviceCode,
+            discretionaryData = discretionaryData
         )
+    }
+
+    private fun decodeTrack1Discretionary(bytes: ByteArray): String? {
+        if (bytes.isEmpty()) return null
+        val isPrintableAscii = bytes.all { (it.toInt() and 0xFF) in 0x20..0x7E }
+        val decoded = if (isPrintableAscii) {
+            BerTlvParser.decodePrintableAscii(bytes)
+        } else {
+            bytes.toHexString()
+        }
+        return decoded.takeIf { it.isNotBlank() }
     }
 
     fun isLuhnValid(pan: String): Boolean {

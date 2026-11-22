@@ -266,6 +266,13 @@ class EmvReaderTest {
         assertEquals("4532891044128917", t2!!.pan)
         assertEquals("08/29", t2.expiryFormatted)
         assertEquals("201", t2.serviceCode)
+        assertEquals("999", t2.discretionaryData)
+
+        val t2NoDisc = EmvReader.parseTrack2("4532891044128917D2908201")
+        assertNull(t2NoDisc?.discretionaryData)
+
+        val t2OnlyPadding = EmvReader.parseTrack2("4532891044128917D2908201FFFFF")
+        assertNull(t2OnlyPadding?.discretionaryData)
 
         assertEquals("Visa", EmvReader.detectNetwork("A0000000031010", null))
         assertEquals("Mastercard", EmvReader.detectNetwork("A0000000041010", null))
@@ -572,5 +579,98 @@ class EmvReaderTest {
         assertNotNull(emv)
         assertTrue(emv!!.transactionLogs.isEmpty())
         assertEquals("Chip transaction log is empty (0 records stored)", emv.logStatusMessage)
+    }
+
+    @Test
+    fun `extracts Track 2 discretionary iCVV, 9F26 cryptogram, and EMVCo cvcNote`() {
+        val visaAid = "A0000000031010".hexToByteArray()
+        val selectResp = tlv("6F", tlv("84", visaAid) + tlv("A5", tlv("50", "BPI Visa Debit".toByteArray())))
+        val gpoResp = tlv(
+            "77",
+            tlv("82", byteArrayOf(0x20, 0x00)) +
+                tlv("94", byteArrayOf(0x08, 0x01, 0x01, 0x00)) +
+                tlv("57", "4537561044128911D29082014190821100FF".hexToByteArray()) +
+                tlv("9F26", "7A3C19F4028E5B11".hexToByteArray())
+        )
+        val rec1 = tlv("70", tlv("5F24", "290831".hexToByteArray()) + tlv("5F28", "0608".hexToByteArray()))
+
+        val channel = object : IsoDepChannel {
+            override fun transceive(command: ByteArray): ByteArray {
+                return when (command.toHexString()) {
+                    "00A404000E325041592E5359532E444446303100" -> byteArrayOf(0x6A, 0x82.toByte())
+                    "00A4040007A000000003101000" -> sw9000(selectResp)
+                    "80A8000002830000" -> sw9000(gpoResp)
+                    "00B2010C00" -> sw9000(rec1)
+                    else -> byteArrayOf(0x6A, 0x82.toByte())
+                }
+            }
+        }
+
+        val emv = EmvReader.readCard(channel).emvInfo
+        assertNotNull(emv)
+        emv!!
+
+        assertEquals("Printed CVV2/CVC2 is never stored on EMV chips (EMVCo security)", emv.cvcNote)
+        assertEquals("Track 2 Discretionary (iCVV)", emv.chipCvcLabel)
+        assertEquals("4190821100", emv.chipCvcData)
+        assertEquals("7A3C19F4028E5B11", emv.cryptogramHex)
+    }
+
+    @Test
+    fun `prioritizes 9F61 Dynamic CVC3 over 9F60, Track 2 discretionary, and 9F1F`() {
+        val mcAid = "A0000000041010".hexToByteArray()
+
+        fun readWithRecordPayload(rec1Payload: ByteArray): com.tapmark.nfc.model.EmvCardInfo {
+            val selectResp = tlv("6F", tlv("84", mcAid) + tlv("A5", tlv("50", "Maya Mastercard".toByteArray())))
+            val gpoResp = tlv(
+                "77",
+                tlv("82", byteArrayOf(0x19, 0x80.toByte())) +
+                    tlv("94", byteArrayOf(0x08, 0x01, 0x01, 0x00)) +
+                    tlv("9F26", "6C41B9A2F10847E5".hexToByteArray())
+            )
+            val rec1 = tlv("70", rec1Payload)
+            val channel = object : IsoDepChannel {
+                override fun transceive(command: ByteArray): ByteArray {
+                    return when (command.toHexString()) {
+                        "00A404000E325041592E5359532E444446303100" -> byteArrayOf(0x6A, 0x82.toByte())
+                        "00A4040007A000000004101000" -> sw9000(selectResp)
+                        "80A8000002830000" -> sw9000(gpoResp)
+                        "00B2010C00" -> sw9000(rec1)
+                        else -> byteArrayOf(0x6A, 0x82.toByte())
+                    }
+                }
+            }
+            return EmvReader.readCard(channel).emvInfo!!
+        }
+
+        // 1. 9F61 wins over 9F60, Track 2 discretionary, and 9F1F
+        val emv9F61 = readWithRecordPayload(
+            tlv("57", "5424820173649037D300322155019283FF".hexToByteArray()) +
+                tlv("9F61", "0384".hexToByteArray()) +
+                tlv("9F60", "1A2B".hexToByteArray()) +
+                tlv("9F1F", "DISC1234".toByteArray(StandardCharsets.US_ASCII))
+        )
+        assertEquals("Printed CVV2/CVC2 is never stored on EMV chips (EMVCo security)", emv9F61.cvcNote)
+        assertEquals("Dynamic CVC3 (9F61)", emv9F61.chipCvcLabel)
+        assertEquals("0384", emv9F61.chipCvcData)
+        assertEquals("6C41B9A2F10847E5", emv9F61.cryptogramHex)
+
+        // 2. 9F60 wins over Track 2 discretionary and 9F1F
+        val emv9F60 = readWithRecordPayload(
+            tlv("57", "5424820173649037D300322155019283FF".hexToByteArray()) +
+                tlv("9F60", "1A2B".hexToByteArray()) +
+                tlv("9F1F", "DISC1234".toByteArray(StandardCharsets.US_ASCII))
+        )
+        assertEquals("Dynamic CVC3 (9F60)", emv9F60.chipCvcLabel)
+        assertEquals("1A2B", emv9F60.chipCvcData)
+
+        // 3. Track 1 Discretionary (9F1F) fallback when 9F61/9F60/Track2 disc are absent
+        val emv9F1F = readWithRecordPayload(
+            tlv("5A", "5424820173649037".hexToByteArray()) +
+                tlv("5F24", "300331".hexToByteArray()) +
+                tlv("9F1F", "DISC1234".toByteArray(StandardCharsets.US_ASCII))
+        )
+        assertEquals("Track 1 Discretionary (9F1F)", emv9F1F.chipCvcLabel)
+        assertEquals("DISC1234", emv9F1F.chipCvcData)
     }
 }

@@ -452,6 +452,7 @@ object BankBinDatabase {
         // GoTyme Bank
         put("424032", ph("GoTyme Bank", "Debit", "Debit"))
         put("433277", ph("GoTyme Bank", "Debit", "Debit"))
+        put("454090", ph("GoTyme Bank", "Debit", "Classic"))
         put("460186", ph("GoTyme Bank", "Debit", "Classic"))
 
         // SeaBank / MariBank

@@ -61,13 +61,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.tapmark.nfc.model.CardVisualStyle
 import com.tapmark.nfc.model.ScannedCard
 import com.tapmark.nfc.ui.components.CardInspectionPane
 import com.tapmark.nfc.ui.components.RenameLabelDialog
+import com.tapmark.nfc.ui.components.drawBankArtwork
 import com.tapmark.nfc.ui.components.formatRelativeTimestamp
 import com.tapmark.nfc.ui.components.formatShortUid
-import com.tapmark.nfc.ui.components.toPalette
+import com.tapmark.nfc.ui.components.resolveBankCardTheme
 import com.tapmark.nfc.ui.theme.CardSurface
 import com.tapmark.nfc.ui.theme.CopperSoftTint
 import com.tapmark.nfc.ui.theme.CopperTerracotta
@@ -372,7 +372,7 @@ private fun HistoryCardItem(
                 .padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            MiniCardSwatch(visualStyle = card.visualStyle)
+            MiniCardSwatch(card = card)
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -448,10 +448,11 @@ private fun HistoryCardItem(
 
 @Composable
 private fun MiniCardSwatch(
-    visualStyle: CardVisualStyle,
+    card: ScannedCard,
     modifier: Modifier = Modifier
 ) {
-    val palette = visualStyle.toPalette()
+    val theme = resolveBankCardTheme(card)
+    val palette = theme.palette
 
     Box(
         modifier = modifier
@@ -459,12 +460,16 @@ private fun MiniCardSwatch(
             .clip(RoundedCornerShape(7.dp))
             .background(palette.baseColor)
             .border(1.dp, palette.borderColor, RoundedCornerShape(7.dp))
-            .padding(6.dp)
     ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawRect(color = palette.baseColor)
+            drawBankArtwork(theme)
+        }
         // Tiny metallic chip detail
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
+                .padding(start = 6.dp)
                 .size(width = 9.dp, height = 7.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(palette.chipGoldTint)

@@ -217,6 +217,16 @@ fun buildCardSummaryText(card: ScannedCard): String {
         emv.cardholderName?.let { sb.appendLine("Cardholder: $it") }
         emv.atc?.let { sb.appendLine("ATC: $it") }
         emv.lastOnlineAtc?.let { sb.appendLine("Last Online ATC: $it") }
+        val cvcProtection = emv.cvcNote?.takeIf { it.isNotBlank() }
+            ?: "Printed CVV2/CVC2 is never stored on EMV chips (EMVCo security)"
+        sb.appendLine("CVV2 / CVC2: Not stored on chip ($cvcProtection)")
+        if (!emv.chipCvcData.isNullOrBlank()) {
+            val chipLabel = emv.chipCvcLabel?.takeIf { it.isNotBlank() } ?: "Chip CVC / iCVV"
+            sb.appendLine("$chipLabel: •••• (masked)")
+        }
+        emv.cryptogramHex?.takeIf { it.isNotBlank() }?.let {
+            sb.appendLine("Cryptogram (9F26): $it")
+        }
 
         if (emv.transactionLogs.isNotEmpty()) {
             sb.appendLine("Transaction History (${emv.transactionLogs.size}):")
