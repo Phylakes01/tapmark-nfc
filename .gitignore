@@ -1,0 +1,25 @@
+# Gradle & Kotlin build caches/outputs
+.gradle/
+.kotlin/
+build/
+app/build/
+
+# Local environment
+local.properties
+
+# Keystores & release artifacts (never commit signing credentials or APKs)
+keystore/
+keystore.properties
+*.jks
+*.keystore
+*.apk
+*.aab
+
+# IDE files
+.idea/
+*.iml
+captures/
+
+# OS metadata
+.DS_Store
+Thumbs.db
