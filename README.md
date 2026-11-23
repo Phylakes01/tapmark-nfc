@@ -1,6 +1,6 @@
 # Tapmark
 
-**Tapmark** (`com.tapmark.nfc`) is a read-only Android NFC card and tag inspector built with Kotlin and Jetpack Compose in a tactile archival paper and copper-coil design.
+**Tapmark** (`com.tapmark.nfc`) is an Android NFC card inspector and Hybrid Payment Terminal (`v1.4`) built with Kotlin and Jetpack Compose in a tactile archival paper and copper-coil design.
 
 ---
 
@@ -15,9 +15,22 @@
   <tr>
     <td align="center"><img src="docs/screenshots/05-gcash-card-back.png" width="200" alt="3D Card Back Flip" /><br /><sub><b>3D Card Back &amp; Chip Security</b></sub></td>
     <td align="center"><img src="docs/screenshots/06-transaction-history.png" width="200" alt="EMV Details and Security Ledger" /><br /><sub><b>EMV Ledger &amp; Chip Security</b></sub></td>
-    <td align="center"><sub><b>Tapmark v1.3</b><br />Animated Launch Intro<br />3D Touch-Tilt &amp; Flip<br />EMV Logs &amp; Bank Artwork<br /><br /><i>Made by Jeremiah Temporado</i></sub></td>
+    <td align="center"><img src="docs/screenshots/07-terminal-keypad.png" width="200" alt="Hybrid Payment Terminal Keypad" /><br /><sub><b>Hybrid Payment Terminal</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/09-terminal-qr-checkout.png" width="200" alt="QR Ph and Checkout Session" /><br /><sub><b>QR Ph / Checkout Session</b></sub></td>
+    <td align="center" colspan="2"><sub><b>Tapmark v1.4 Highlights</b><br />Animated Opening Intro &bull; 3D Touch-Tilt &amp; Flip<br />PayMongo / Maya QR Ph Checkout &bull; NFC Tap-to-Pay Sandbox Demo<br />EMV Chip Logs &bull; 34 Bank Card Artwork Themes<br /><br /><i>Made by Jeremiah Temporado</i></sub></td>
   </tr>
 </table>
+
+---
+
+## Hybrid Payment Terminal (PayMongo / Maya QR Ph &amp; NFC Sandbox)
+
+- **&#8369;0/month Online Gateway Integration:** Built-in support for **PayMongo Checkout Sessions** (`POST https://api.paymongo.com/v1/checkout_sessions` for `qrph`, `gcash`, `paymaya`, and `card`, plus live status polling), **Maya Checkout** (`pg-sandbox.paymaya.com` and `pg.paymaya.com`), and an optional **Custom Backend Proxy** URL &mdash; configurable in **Gateway Settings** with no monthly subscription fees. Hosted checkout redirects return cleanly to Tapmark via the `tapmark://payment/{success|cancel|failed}` deep link, and credentials stay in app-private `SharedPreferences` (`tapmark_gateway_prefs`).
+- **QR Ph / Checkout &amp; Offline Sandbox Preview:** Renders crisp ZXing QR codes (`com.google.zxing:core:3.5.3`) from live checkout URLs or runs immediately offline in **Sandbox Demo** QR preview mode (`Mark Test Paid`).
+- **NFC Tap-to-Pay Sandbox Demo &amp; Sales Ledger:** While the **Terminal** tab is awaiting a tap, `NfcAdapter.enableReaderMode` captures real contactless EMV cards directly into an animated `APPROVED` perforated digital receipt (alongside a built-in **Simulate BPI Tap** helper). Receipts and today's PHP (`&#8369;`) total persist locally in `tapmark_receipts.json`.
+- **PCI MPoC Compliance Note:** Real live NFC contactless card charging (SoftPOS) requires PCI MPoC certification and acquiring bank merchant onboarding. For full transparency and compliance, Tapmark's NFC Tap-to-Pay flow operates as a **Sandbox Demo (No Real Charge)**, while real &#8369;0/month live payments use PayMongo or Maya QR Ph &amp; Hosted Checkout.
 
 ---
 
@@ -34,7 +47,7 @@ Custom geometric vector card artwork, brand palettes, crests, and vector network
 
 By global **EMVCo contactless security standards**, the static 3- or 4-digit **CVV2 / CVC2** printed on the back of a physical payment card is **never stored on the EMV chip** and cannot be read over NFC by any app.
 
-Instead, Tapmark v1.3 transparently reports that EMVCo protection on the flippable **3D Card Back** and in the **Payment / EMV Info** ledger while extracting the real chip-level cryptographic security fields when exposed by the card:
+Instead, Tapmark transparently reports that EMVCo protection on the flippable **3D Card Back** and in the **Payment / EMV Info** ledger while extracting the real chip-level cryptographic security fields when exposed by the card:
 - **Dynamic CVC3** (`9F61` Track 2 / `9F60` Track 1)
 - **Track 2 Discretionary Data (`iCVV` / `dCVV`)** from tag `57` (and Track 1 `9F1F`)
 - **Application Cryptogram (`9F26`)** and **Service Code (`5F30`)**

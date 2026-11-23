@@ -47,8 +47,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,11 +72,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tapmark.nfc.model.CheckoutSessionResult
+import com.tapmark.nfc.model.GatewayConfig
 import com.tapmark.nfc.model.NfcHardwareState
 import com.tapmark.nfc.model.ScannedCard
+import com.tapmark.nfc.model.TerminalReceipt
 import com.tapmark.nfc.ui.components.OpeningIntroOverlay
 import com.tapmark.nfc.ui.screens.HistoryScreen
 import com.tapmark.nfc.ui.screens.ScanScreen
+import com.tapmark.nfc.ui.screens.TerminalScreen
+import com.tapmark.nfc.ui.screens.TerminalStage
 import com.tapmark.nfc.ui.theme.CardSurface
 import com.tapmark.nfc.ui.theme.CopperTerracotta
 import com.tapmark.nfc.ui.theme.DividerHairline
@@ -97,6 +102,7 @@ import kotlin.math.roundToInt
 
 enum class TapmarkTab {
     SCAN,
+    TERMINAL,
     SAVED
 }
 
@@ -118,12 +124,49 @@ fun TapmarkApp(
     onUpdateLabel: (String, String?) -> Unit,
     onDeleteCard: (String) -> Unit,
     onClearHistory: () -> Unit,
+    gatewayConfig: GatewayConfig = GatewayConfig(),
+    terminalReceipts: List<TerminalReceipt> = emptyList(),
+    todayTotalCentavos: Long = 0L,
+    terminalStage: TerminalStage = TerminalStage.KEYPAD,
+    terminalAmountCentavos: Long = 0L,
+    terminalDescription: String = "Tapmark Sale",
+    terminalTappedCard: ScannedCard? = null,
+    terminalActiveReceipt: TerminalReceipt? = null,
+    terminalQrSession: CheckoutSessionResult? = null,
+    terminalIsCreatingQr: Boolean = false,
+    terminalIsCheckingQrStatus: Boolean = false,
+    terminalQrError: String? = null,
+    terminalIsReadingNfc: Boolean = false,
+    terminalTagLostMessage: String? = null,
+    terminalErrorMessage: String? = null,
+    onTerminalAmountChange: (Long) -> Unit = {},
+    onTerminalDescriptionChange: (String) -> Unit = {},
+    onTerminalStageChange: (TerminalStage) -> Unit = {},
+    onTerminalStartNfcTap: () -> Unit = {},
+    onTerminalSimulateBpiTap: () -> Unit = {},
+    onTerminalCancelNfcTap: () -> Unit = {},
+    onTerminalStartQrCheckout: () -> Unit = {},
+    onTerminalCheckQrStatus: () -> Unit = {},
+    onTerminalMarkSandboxPaid: () -> Unit = {},
+    onTerminalNewSale: () -> Unit = {},
+    onSaveGatewayConfig: (GatewayConfig) -> Unit = {},
+    onDeleteTerminalReceipt: (String) -> Unit = {},
+    onClearTerminalReceipts: () -> Unit = {},
+    externalFeedbackMessage: String? = null,
+    onConsumeExternalFeedback: () -> Unit = {},
     showOpeningIntro: Boolean = false,
     onIntroFinished: () -> Unit = {},
     onSelectSample: (Int) -> Unit = {},
     startCardFlipped: Boolean = false
 ) {
     var feedbackBanner by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(externalFeedbackMessage) {
+        if (!externalFeedbackMessage.isNullOrBlank()) {
+            feedbackBanner = externalFeedbackMessage
+            onConsumeExternalFeedback()
+        }
+    }
 
     LaunchedEffect(feedbackBanner) {
         if (feedbackBanner != null) {
@@ -144,7 +187,7 @@ fun TapmarkApp(
         ) {
             TapmarkTopBar(
                 nfcState = nfcState,
-                isReading = isReading
+                isReading = isReading || terminalIsReadingNfc
             )
 
             AnimatedContent(
@@ -188,6 +231,41 @@ fun TapmarkApp(
                         )
                     }
 
+                    TapmarkTab.TERMINAL -> {
+                        TerminalScreen(
+                            nfcState = nfcState,
+                            gatewayConfig = gatewayConfig,
+                            receipts = terminalReceipts,
+                            todayTotalCentavos = todayTotalCentavos,
+                            stage = terminalStage,
+                            amountCentavos = terminalAmountCentavos,
+                            description = terminalDescription,
+                            tappedCard = terminalTappedCard,
+                            activeReceipt = terminalActiveReceipt,
+                            qrSession = terminalQrSession,
+                            isCreatingQrSession = terminalIsCreatingQr,
+                            isCheckingQrStatus = terminalIsCheckingQrStatus,
+                            qrErrorMessage = terminalQrError,
+                            isReadingNfc = terminalIsReadingNfc,
+                            nfcTagLostMessage = terminalTagLostMessage,
+                            nfcErrorMessage = terminalErrorMessage,
+                            onAmountChange = onTerminalAmountChange,
+                            onDescriptionChange = onTerminalDescriptionChange,
+                            onStageChange = onTerminalStageChange,
+                            onStartNfcTap = onTerminalStartNfcTap,
+                            onSimulateBpiTap = onTerminalSimulateBpiTap,
+                            onCancelNfcTap = onTerminalCancelNfcTap,
+                            onStartQrCheckout = onTerminalStartQrCheckout,
+                            onCheckQrStatus = onTerminalCheckQrStatus,
+                            onMarkSandboxPaid = onTerminalMarkSandboxPaid,
+                            onNewSale = onTerminalNewSale,
+                            onSaveGatewayConfig = onSaveGatewayConfig,
+                            onDeleteReceipt = onDeleteTerminalReceipt,
+                            onClearAllReceipts = onClearTerminalReceipts,
+                            onFeedbackMessage = { feedbackBanner = it }
+                        )
+                    }
+
                     TapmarkTab.SAVED -> {
                         HistoryScreen(
                             cards = history,
@@ -206,7 +284,7 @@ fun TapmarkApp(
             }
         }
 
-        // Bottom overlay: transient feedback pill + floating 2-tab pill switcher + creator credit
+        // Bottom overlay: transient feedback pill + floating 3-tab pill switcher + creator credit
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -473,13 +551,12 @@ private fun FloatingTabSwitcher(
     ) {
         Box(modifier = Modifier.padding(4.dp)) {
             var rowHeightPx by remember { mutableIntStateOf(0) }
-            var scanLeftPx by remember { mutableFloatStateOf(0f) }
-            var scanWidthPx by remember { mutableFloatStateOf(0f) }
-            var savedLeftPx by remember { mutableFloatStateOf(0f) }
-            var savedWidthPx by remember { mutableFloatStateOf(0f) }
+            val tabLefts = remember { mutableStateListOf(0f, 0f, 0f) }
+            val tabWidths = remember { mutableStateListOf(0f, 0f, 0f) }
 
-            val targetLeft = if (selectedTab == TapmarkTab.SCAN) scanLeftPx else savedLeftPx
-            val targetWidth = if (selectedTab == TapmarkTab.SCAN) scanWidthPx else savedWidthPx
+            val activeIndex = selectedTab.ordinal
+            val targetLeft = tabLefts.getOrElse(activeIndex) { 0f }
+            val targetWidth = tabWidths.getOrElse(activeIndex) { 0f }
 
             val indicatorLeft = remember { Animatable(0f) }
             val indicatorWidth = remember { Animatable(0f) }
@@ -539,8 +616,19 @@ private fun FloatingTabSwitcher(
                     useFallbackBg = !hasSnapped,
                     onClick = { onSelectTab(TapmarkTab.SCAN) },
                     modifier = Modifier.onGloballyPositioned { coords ->
-                        scanLeftPx = coords.positionInParent().x
-                        scanWidthPx = coords.size.width.toFloat()
+                        tabLefts[0] = coords.positionInParent().x
+                        tabWidths[0] = coords.size.width.toFloat()
+                    }
+                )
+                TabPillItem(
+                    label = "Terminal",
+                    badgeCount = null,
+                    selected = selectedTab == TapmarkTab.TERMINAL,
+                    useFallbackBg = !hasSnapped,
+                    onClick = { onSelectTab(TapmarkTab.TERMINAL) },
+                    modifier = Modifier.onGloballyPositioned { coords ->
+                        tabLefts[1] = coords.positionInParent().x
+                        tabWidths[1] = coords.size.width.toFloat()
                     }
                 )
                 TabPillItem(
@@ -550,8 +638,8 @@ private fun FloatingTabSwitcher(
                     useFallbackBg = !hasSnapped,
                     onClick = { onSelectTab(TapmarkTab.SAVED) },
                     modifier = Modifier.onGloballyPositioned { coords ->
-                        savedLeftPx = coords.positionInParent().x
-                        savedWidthPx = coords.size.width.toFloat()
+                        tabLefts[2] = coords.positionInParent().x
+                        tabWidths[2] = coords.size.width.toFloat()
                     }
                 )
             }
@@ -590,14 +678,15 @@ private fun TabPillItem(
             .clip(RoundedCornerShape(999.dp))
             .background(bgColor)
             .clickable(role = Role.Tab, onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 15.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = textColor
+            color = textColor,
+            maxLines = 1
         )
         if (badgeCount != null) {
             Spacer(modifier = Modifier.width(6.dp))
